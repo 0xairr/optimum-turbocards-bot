@@ -1,6 +1,8 @@
+import threading
 import unittest
+from unittest import mock
 
-from optimum_bot import extract_codes, mint_calldata, order_codes
+from optimum_bot import Bot, extract_codes, mint_calldata, order_codes
 
 
 class Ordering(unittest.TestCase):
@@ -49,6 +51,49 @@ class Extraction(unittest.TestCase):
 
     def test_camel_case_words_are_not_codes(self):
         self.assertEqual(extract_codes('Reminder: Soulbound cards, MetaMask or LayerZero wallets'), ([], []))
+
+
+def fake_bot(http_codes, rule_statuses=()):
+    """Bot with Snag stubbed out: each code attempt returns the next HTTP code, each rule poll the next status."""
+    bot = Bot.__new__(Bot)
+    bot.state, bot.claim_lock, bot.tried = {}, threading.Lock(), []
+    http_codes, rule_statuses = list(http_codes), list(rule_statuses)
+
+    def try_code(code):
+        bot.tried.append(code)
+        return code, http_codes.pop(0), {}
+    bot.try_code = try_code
+    bot.wait_rule = lambda *a: {'status': rule_statuses.pop(0) if rule_statuses else 'completed'}
+    bot.ensure_minted = bot.save = lambda: None
+    return bot
+
+
+@mock.patch('optimum_bot.log')
+class Claiming(unittest.TestCase):
+    CODES = (['A', 'B', 'C', 'D'], [])  # order_codes tries D, C, B, A
+
+    def test_stops_after_first_accepted_code(self, _):
+        bot = fake_bot([200, 200, 200])
+        bot.claim(self.CODES, 'post')
+        self.assertEqual(bot.tried, ['D'])
+        self.assertEqual(bot.state['code_claimed']['codes'], ['D'])
+
+    def test_rejected_code_moves_to_next(self, _):
+        bot = fake_bot([400, 200])
+        bot.claim(self.CODES, 'post')
+        self.assertEqual(bot.tried, ['D', 'C'])
+
+    def test_code_used_up_while_queued_moves_to_next(self, _):
+        bot = fake_bot([200, 200], ['failed', 'completed'])
+        bot.claim(self.CODES, 'post')
+        self.assertEqual(bot.state['code_claimed']['codes'], ['C'])
+
+    @mock.patch('optimum_bot.time.sleep')
+    def test_rate_limit_waits_then_retries_same_code(self, sleep, _):
+        bot = fake_bot([429, 200])
+        bot.claim(self.CODES, 'post')
+        self.assertEqual(bot.tried, ['D', 'D'])
+        sleep.assert_called_once_with(61)
 
 
 class Calldata(unittest.TestCase):

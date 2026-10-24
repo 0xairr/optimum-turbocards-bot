@@ -272,20 +272,22 @@ class Bot:
             strong, weak = codes
             queue = order_codes(strong) + weak[:6]
             log('claiming', order=queue, source=source)
-            for i in range(0, len(queue), 3):
-                wave = queue[i:i + 3]
-                with ThreadPoolExecutor(len(wave)) as pool:
-                    results = list(pool.map(self.try_code, wave))
-                accepted = [c for c, st, _ in results if st < 300]
-                if not accepted:
+            # One code at a time: parallel waves burned 2 codes on Drop #1 and tripped
+            # Snag's "too many attempts, try again in 1 minute" lock.
+            for code in queue:
+                _, status, _ = self.try_code(code)
+                if status == 429:
+                    time.sleep(61)
+                    _, status, _ = self.try_code(code)
+                if status >= 300:
                     continue
                 row = self.wait_rule(CODE_RULE)
-                log('code_rule_status', accepted=accepted, status=row)
+                log('code_rule_status', code=code, status=row)
                 # 'failed' means the code got used up while queued; anything else, go mint.
                 if row.get('status') != 'failed':
-                    self.state['code_claimed'] = {'codes': accepted, 'source': source, 'at': now()}
+                    self.state['code_claimed'] = {'codes': [code], 'source': source, 'at': now()}
                     self.save()
-                    log('CODE_CLAIMED', codes=accepted, source=source)
+                    log('CODE_CLAIMED', code=code, source=source)
                     return self.ensure_minted()
             log('no_code_worked', tried=queue, source=source)
 
