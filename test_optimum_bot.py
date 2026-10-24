@@ -2,7 +2,9 @@ import threading
 import unittest
 from unittest import mock
 
-from optimum_bot import Bot, extract_codes, mint_calldata, order_codes
+import requests
+
+from optimum_bot import SETUP_RULES, Bot, extract_codes, mint_calldata, order_codes
 
 
 class Ordering(unittest.TestCase):
@@ -94,6 +96,31 @@ class Claiming(unittest.TestCase):
         bot.claim(self.CODES, 'post')
         self.assertEqual(bot.tried, ['D', 'D'])
         sleep.assert_called_once_with(61)
+
+
+@mock.patch('optimum_bot.log')
+class SetupTasks(unittest.TestCase):
+    def bot(self, complete_rule):
+        bot = Bot.__new__(Bot)
+        bot.state, bot.complete_rule = {}, complete_rule
+        bot.wait_rule = lambda *a: {}
+        bot.save = lambda: None
+        return bot
+
+    def test_each_task_posted_once_even_if_never_completed(self, _):
+        posts = []
+        bot = self.bot(lambda rule, body=None: posts.append(rule) or (400, {'message': 'Quest not completed'}))
+        bot.setup_tasks()
+        bot.setup_tasks()  # restart
+        self.assertEqual(sorted(posts), sorted(SETUP_RULES.values()))
+
+    def test_task_retried_if_request_got_no_response(self, _):
+        def offline(rule, body=None):
+            raise requests.ConnectionError('offline')
+        bot = self.bot(offline)
+        with self.assertRaises(requests.ConnectionError):
+            bot.setup_tasks()
+        self.assertEqual(bot.state.get('setup', {}), {})
 
 
 class Calldata(unittest.TestCase):

@@ -247,16 +247,17 @@ class Bot:
         return row
 
     def setup_tasks(self):
+        # POST each task once, even if it didn't complete: a second POST leaves
+        # Snag's link_click follow task stuck for good. Codes claim fine without it.
+        posted = self.state.setdefault('setup', {})
         for name, rule in SETUP_RULES.items():
-            if self.state.get('setup', {}).get(name):
+            if posted.get(name):
                 continue
             code, data = self.complete_rule(rule)
+            posted[name] = now()
+            self.save()
             row = self.wait_rule(rule, 15) if code < 300 else {}
             log('setup_task', task=name, http=code, response=data, status=row)
-            msg = json.dumps(data).lower()
-            if row.get('status') == 'completed' or 'already' in msg:
-                self.state.setdefault('setup', {})[name] = now()
-                self.save()
 
     # ---- code claiming
     def try_code(self, code):
