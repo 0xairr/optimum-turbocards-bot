@@ -482,6 +482,8 @@ def selftest():
 
 
 if __name__ == '__main__':
+    # Windows uses cp1252 when output is redirected; an emoji in a post would crash log() before claiming.
+    sys.stdout.reconfigure(encoding='utf-8')
     if sys.argv[1:] == ['--selftest']:
         selftest()
     else:
