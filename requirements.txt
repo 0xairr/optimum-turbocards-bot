@@ -1,0 +1,4 @@
+requests==2.34.2
+eth-account==0.14.0
+eth-abi==6.0.0
+eth-utils==6.0.0

@@ -1,0 +1,9 @@
+# Private key and runtime state - never commit these
+wallet.json
+state.json
+status.json
+events.jsonl
+*.tmp
+
+.venv/
+__pycache__/
