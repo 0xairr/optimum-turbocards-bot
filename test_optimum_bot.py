@@ -38,6 +38,18 @@ class Extraction(unittest.TestCase):
     def test_all_caps_word_is_weak(self):
         self.assertEqual(extract_codes('Code: SPEEDRUN'), ([], ['SPEEDRUN']))
 
+    def test_drop_1_post_finds_all_20_codes(self):
+        # Real Drop #1 post; 3 of its codes are letters-only mixed case and were missed.
+        codes = ['ZZm7dvp2Mnza', 'J-SHWlW_9VUL', 'xOqFybMt32jQ', 'mkCiMgbE19Ut', 'btjzW8-c6g5G', 'DiR0wmmMB8Ue',
+                 'YhtfxV-11x3U', 'wGwHjwEXNE8u', '0QAhFtKCfJpu', 'AGE2zDSTNKvK', 'dozMopS2KkAA', 'Ve3wla_zgpac',
+                 'RYV20H9Nzc5P', 'Qr8I0C492mcl', 'YUlxl-EhvegG', 'JhRTQ_ed1FGC', '5DBDZKa0iPo7', 'ewMTEfknxu_M',
+                 'l2KUSisEp7El', 'ixcKpRTDJZWG']
+        text = 'Drop number 1. 20 TurboCard codes. First come, first served.\n\n' + '\n'.join(codes)
+        self.assertEqual(extract_codes(text), (codes, []))
+
+    def test_camel_case_words_are_not_codes(self):
+        self.assertEqual(extract_codes('Reminder: Soulbound cards, MetaMask or LayerZero wallets'), ([], []))
+
 
 class Calldata(unittest.TestCase):
     def test_matches_real_mint_tx(self):

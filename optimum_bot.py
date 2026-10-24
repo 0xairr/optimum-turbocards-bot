@@ -59,6 +59,7 @@ STOP = {'OPTIMUM', 'TURBO', 'TURBOCARD', 'TURBOCARDS', 'CARDS', 'MINT', 'MINTING
         'ETHEREUM', 'MAINNET', 'WEB3', 'HTTPS', 'TODAY', 'FRIDAY', 'NOW', 'HERE', 'THESE', 'THOSE',
         'GOOD', 'LUCK', 'ENJOY', 'THANKS', 'THANK', 'BELOW', 'ABOVE', 'USE', 'ENTER', 'LINK', 'NFTS'}
 TIME_LIKE = re.compile(r'^\d{1,2}(:\d{2})?(AM|PM|UTC|ET|EST|PST)?$', re.I)
+WORD_LIKE = re.compile(r'[A-Z]?[a-z]+(?:[A-Z][a-z]+)*')  # Friday, MetaMask, getOptimum
 
 
 def now():
@@ -101,6 +102,8 @@ def extract_codes(text):
         has_alpha = any(c.isalpha() for c in tok)
         if has_digit and has_alpha and len(tok) >= 5:
             bucket = strong
+        elif not tok.isupper() and not tok.islower() and len(tok) >= 8 and not WORD_LIKE.fullmatch(tok):
+            bucket = strong  # letters-only random case, e.g. ixcKpRTDJZWG
         elif has_alpha and tok.isupper() and len(tok) >= 5:
             bucket = weak
         elif tok.isdigit() and 6 <= len(tok) <= 12:
