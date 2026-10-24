@@ -158,8 +158,11 @@ def broadcast(raw_hex):
         return list(pool.map(send, RPCS))
 
 
-def mint_calldata(signed):
+def mint_calldata(signed, owner):
     p = signed['payload']
+    # TurboCards are free: never sign a payload from Snag that costs ETH or mints to another wallet.
+    if int(p['price']) != 0 or p['to'].lower() != owner.lower():
+        raise ValueError('refusing to sign mint: price=%s to=%s' % (p['price'], p['to']))
     req = (to_checksum_address(p['to']), to_checksum_address(p['royaltyRecipient']), int(p['royaltyBps']),
            to_checksum_address(p['primarySaleRecipient']), p['uri'], int(p['price']),
            to_checksum_address(p['currency']), int(p['validityStartTimestamp']), int(p['validityEndTimestamp']),
@@ -343,7 +346,7 @@ class Bot:
             if not signed:
                 continue
             log('mint_signature', asset=asset, payload=signed.get('payload'))
-            data, value = mint_calldata(signed)
+            data, value = mint_calldata(signed, self.acct.address)
             nonce = int(rpc('eth_getTransactionCount', [self.acct.address, 'pending']), 16)
             tx = {'chainId': 1, 'type': 2, 'nonce': nonce, 'to': CONTRACT, 'value': value, 'data': data,
                   'gas': GAS_LIMIT, 'maxFeePerGas': max_fee, 'maxPriorityFeePerGas': PRIORITY_WEI}

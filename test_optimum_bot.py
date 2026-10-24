@@ -125,20 +125,32 @@ class SetupTasks(unittest.TestCase):
 
 class Calldata(unittest.TestCase):
     def test_matches_real_mint_tx(self):
-        # Mint tx 0xfa480ed7... on mainnet, 23 Oct 2026.
-        signed = {'payload': {
-            'to': '0xA685932ef2e06a330FcC20499b01E763025Cec5f',
-            'royaltyRecipient': '0x99f87aF396cFb887e1e7B67a0a584922Ccc9e2a5', 'royaltyBps': '0',
-            'primarySaleRecipient': '0x99f87aF396cFb887e1e7B67a0a584922Ccc9e2a5',
-            'uri': 'ipfs://QmTfqXFNwDWsv2JyEw8NzttSp31A2VRart2LGF2JKP3pfD/0', 'price': '0',
-            'currency': '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE', 'validityStartTimestamp': 0,
-            'validityEndTimestamp': 1792766676,
-            'uid': '0x67a8b72d46f70cc8f5b32d5dfd1fa9fe1dfd63eb31d9fe565a6cff8843c41a74'},
-            'signature': '0xb3da37a5082569062d64c7cd38949f30fcf8faa129f28ac73cbb9cecb37ccea97fecc5ec0ed53d3d81f0364874fa044a67fff58074fd72eb5633fe265cb81d041c'}
-        data, value = mint_calldata(signed)
+        data, value = mint_calldata(REAL_SIGNED, REAL_MINTER)
         self.assertEqual(data[:4].hex(), '2c4510f8')
         self.assertEqual(value, 0)
         self.assertEqual('0x' + data.hex(), REAL_INPUT)
+
+    def test_refuses_paid_mint(self):
+        paid = {**REAL_SIGNED, 'payload': {**REAL_SIGNED['payload'], 'price': '1000000000000000'}}
+        with self.assertRaises(ValueError):
+            mint_calldata(paid, REAL_MINTER)
+
+    def test_refuses_mint_to_another_wallet(self):
+        with self.assertRaises(ValueError):
+            mint_calldata(REAL_SIGNED, '0x' + '11' * 20)
+
+
+# Mint tx 0xfa480ed7... on mainnet, 23 Oct 2026.
+REAL_MINTER = '0xA685932ef2e06a330FcC20499b01E763025Cec5f'
+REAL_SIGNED = {'payload': {
+    'to': REAL_MINTER,
+    'royaltyRecipient': '0x99f87aF396cFb887e1e7B67a0a584922Ccc9e2a5', 'royaltyBps': '0',
+    'primarySaleRecipient': '0x99f87aF396cFb887e1e7B67a0a584922Ccc9e2a5',
+    'uri': 'ipfs://QmTfqXFNwDWsv2JyEw8NzttSp31A2VRart2LGF2JKP3pfD/0', 'price': '0',
+    'currency': '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE', 'validityStartTimestamp': 0,
+    'validityEndTimestamp': 1792766676,
+    'uid': '0x67a8b72d46f70cc8f5b32d5dfd1fa9fe1dfd63eb31d9fe565a6cff8843c41a74'},
+    'signature': '0xb3da37a5082569062d64c7cd38949f30fcf8faa129f28ac73cbb9cecb37ccea97fecc5ec0ed53d3d81f0364874fa044a67fff58074fd72eb5633fe265cb81d041c'}
 
 
 REAL_INPUT = (
